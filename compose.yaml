@@ -49,15 +49,6 @@ services:
     networks:
       - backend-net
 
-  kafdrop2:
-    image: obsidiandynamics/kafdrop:latest
-    ports:
-      - 19001:9000
-    environment:
-      KAFKA_BROKERCONNECT: kafka-hostname:29092
-    networks:
-      - kafka-net
-
 networks:
   backend-net:
     external: true

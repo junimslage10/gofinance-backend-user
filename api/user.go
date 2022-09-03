@@ -7,12 +7,16 @@ import (
 	"fmt"
 	_ "log"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/gin-gonic/gin"
 	"github.com/goccy/go-json"
 	db "github.com/junimslage10/gofinance-backend-user/db/sqlc"
-	// util "github.com/junimslage10/gofinance-backend-user/util"
+
+	dto "github.com/junimslage10/gofinance-backend-user/dto"
+	util "github.com/junimslage10/gofinance-backend-user/util"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,10 +27,10 @@ type createUserRequest struct {
 }
 
 func (server *Server) createUser(ctx *gin.Context) {
-	// errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
-	// if errOnValiteToken != nil {
-	// 	return
-	// }
+	errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
+	if errOnValiteToken != nil {
+		return
+	}
 	var req createUserRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
@@ -52,7 +56,7 @@ func (server *Server) createUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 	}
 	// Apache Kafka ---
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "kafka-hostname:29092"})
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": os.Getenv("KAFKA_BROKERCONNECT_HOST")})
 	if err != nil {
 		panic(err)
 	}
@@ -75,12 +79,12 @@ func (server *Server) createUser(ctx *gin.Context) {
 
 	// Produce messages to topic (asynchronously)
 	topic := "create-user"
-	messageText := &db.User{
-		ID:        user.ID,
-		Username:  user.Username,
-		Password:  user.Password,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt,
+	messageText := &dto.UserRequest{
+		ID:          user.ID,
+		Username:    user.Username,
+		Password:    user.Password,
+		Email:       user.Email,
+		RequestedAt: time.Now(),
 	}
 	messageTextJson, _ := json.Marshal(messageText)
 	p.Produce(&kafka.Message{
@@ -102,10 +106,10 @@ type getUserRequest struct {
 }
 
 func (server *Server) getUser(ctx *gin.Context) {
-	// errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
-	// if errOnValiteToken != nil {
-	// 	return
-	// }
+	errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
+	if errOnValiteToken != nil {
+		return
+	}
 	var req getUserRequest
 	err := ctx.ShouldBindUri(&req)
 	if err != nil {
@@ -122,7 +126,7 @@ func (server *Server) getUser(ctx *gin.Context) {
 		return
 	}
 	// Apache Kafka ---
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "kafka-hostname:29092"})
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": os.Getenv("KAFKA_BROKERCONNECT_HOST")})
 	if err != nil {
 		panic(err)
 	}
@@ -145,12 +149,12 @@ func (server *Server) getUser(ctx *gin.Context) {
 
 	// Produce messages to topic (asynchronously)
 	topic := "get-user-username"
-	messageText := &db.User{
-		ID:        user.ID,
-		Username:  user.Username,
-		Password:  user.Password,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt,
+	messageText := &dto.UserRequest{
+		ID:          user.ID,
+		Username:    user.Username,
+		Password:    user.Password,
+		Email:       user.Email,
+		RequestedAt: time.Now(),
 	}
 	messageTextJson, _ := json.Marshal(messageText)
 	p.Produce(&kafka.Message{
@@ -192,7 +196,7 @@ func (server *Server) getUserById(ctx *gin.Context) {
 		return
 	}
 	// Apache Kafka ---
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "kafka-hostname:29092"})
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": os.Getenv("KAFKA_BROKERCONNECT_HOST")})
 	if err != nil {
 		panic(err)
 	}
@@ -215,12 +219,12 @@ func (server *Server) getUserById(ctx *gin.Context) {
 
 	// Produce messages to topic (asynchronously)
 	topic := "get-user-id"
-	messageText := &db.User{
-		ID:        user.ID,
-		Username:  user.Username,
-		Password:  user.Password,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt,
+	messageText := &dto.UserRequest{
+		ID:          user.ID,
+		Username:    user.Username,
+		Password:    user.Password,
+		Email:       user.Email,
+		RequestedAt: time.Now(),
 	}
 	messageTextJson, _ := json.Marshal(messageText)
 	p.Produce(&kafka.Message{
