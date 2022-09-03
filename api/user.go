@@ -176,10 +176,10 @@ type getUserByIdRequest struct {
 }
 
 func (server *Server) getUserById(ctx *gin.Context) {
-	// errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
-	// if errOnValiteToken != nil {
-	// 	return
-	// }
+	errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
+	if errOnValiteToken != nil {
+		return
+	}
 	var req getUserByIdRequest
 	err := ctx.ShouldBindUri(&req)
 	if err != nil {
