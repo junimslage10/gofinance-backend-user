@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"crypto/sha512"
 	"database/sql"
+	"fmt"
+	_ "log"
 	"net/http"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/gin-gonic/gin"
 	db "github.com/junimslage10/gofinance-backend-user/db/sqlc"
 	util "github.com/junimslage10/gofinance-backend-user/util"
@@ -103,6 +106,68 @@ func (server *Server) getUserById(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
+	//
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "kafka-hostname:29092"})
+	if err != nil {
+		panic(err)
+	}
 
+	defer p.Close()
+
+	// Delivery report handler for produced messages
+	go func() {
+		for e := range p.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
+				} else {
+					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
+				}
+			}
+		}
+	}()
+
+	// Produce messages to topic (asynchronously)
+	topic := "teste"
+	messageText := "Welcome"
+	p.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          []byte(messageText),
+	}, nil)
+
+	// Wait for message deliveries before shutting down
+	// Flush and close the producer and the events channel
+	for p.Flush(1000) > 0 {
+		fmt.Print("Still waiting to flush outstanding messages\n", p)
+	}
 	ctx.JSON(http.StatusOK, user)
+
+	p.Close()
+
 }
+
+// func NewKafkaProducer() *kafka.Producer {
+
+// 	// configMap := &kafka.ConfigMap{
+// 	// 	"bootstrap.servers": "host.docker.internal:9092",
+// 	// }
+// 	// p, err := kafka.NewProducer(configMap)
+// 	// if err != nil {
+// 	// 	log.Println(err.Error())
+// 	// }
+// 	// return p
+// }
+
+// func Publish(msg string, topic string, producer *kafka.Producer, key []byte) error {
+// 	message := &kafka.Message{
+// 		Value:          []byte(msg),
+// 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+// 		Key:            key,
+// 	}
+// 	err := producer.Produce(message, nil)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
