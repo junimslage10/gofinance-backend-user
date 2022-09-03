@@ -12,8 +12,12 @@ services:
     restart: on-failure
     depends_on:
       - db
+    networks:
+      - backend-net
+      - kafka-net
 
   db:
+    hostname: database-user
     image: postgres:14.3-alpine
     container_name: ${PROJECT_NAME}-db
     build: .docker/postgres
@@ -28,6 +32,8 @@ services:
       - DATABASE_HOST=${DB_HOST}
     ports:
       - "5432:5432"
+    networks:
+      - backend-net
 
   pgadmin:
     image: dpage/pgadmin4:6.13
@@ -40,3 +46,20 @@ services:
       - "9000:80"
     depends_on:
       - db
+    networks:
+      - backend-net
+
+  kafdrop2:
+    image: obsidiandynamics/kafdrop:latest
+    ports:
+      - 19001:9000
+    environment:
+      KAFKA_BROKERCONNECT: kafka-hostname:29092
+    networks:
+      - kafka-net
+
+networks:
+  backend-net:
+    external: true
+  kafka-net:
+    external: true

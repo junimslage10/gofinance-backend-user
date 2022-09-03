@@ -10,6 +10,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/gin-gonic/gin"
+	"github.com/goccy/go-json"
 	db "github.com/junimslage10/gofinance-backend-user/db/sqlc"
 	util "github.com/junimslage10/gofinance-backend-user/util"
 	"golang.org/x/crypto/bcrypt"
@@ -129,11 +130,18 @@ func (server *Server) getUserById(ctx *gin.Context) {
 	}()
 
 	// Produce messages to topic (asynchronously)
-	topic := "teste"
-	messageText := "Welcome"
+	topic := "get-user-id"
+	messageText := &db.User{
+		ID:        user.ID,
+		Username:  user.Username,
+		Password:  user.Password,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+	}
+	messageTextJson, _ := json.Marshal(messageText)
 	p.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          []byte(messageText),
+		Value:          []byte(string(messageTextJson)),
 	}, nil)
 
 	// Wait for message deliveries before shutting down
@@ -143,31 +151,4 @@ func (server *Server) getUserById(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, user)
 
-	p.Close()
-
 }
-
-// func NewKafkaProducer() *kafka.Producer {
-
-// 	// configMap := &kafka.ConfigMap{
-// 	// 	"bootstrap.servers": "host.docker.internal:9092",
-// 	// }
-// 	// p, err := kafka.NewProducer(configMap)
-// 	// if err != nil {
-// 	// 	log.Println(err.Error())
-// 	// }
-// 	// return p
-// }
-
-// func Publish(msg string, topic string, producer *kafka.Producer, key []byte) error {
-// 	message := &kafka.Message{
-// 		Value:          []byte(msg),
-// 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-// 		Key:            key,
-// 	}
-// 	err := producer.Produce(message, nil)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
