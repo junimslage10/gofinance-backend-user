@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/goccy/go-json"
 	db "github.com/junimslage10/gofinance-backend-user/db/sqlc"
-	util "github.com/junimslage10/gofinance-backend-user/util"
+	// util "github.com/junimslage10/gofinance-backend-user/util"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,10 +23,10 @@ type createUserRequest struct {
 }
 
 func (server *Server) createUser(ctx *gin.Context) {
-	errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
-	if errOnValiteToken != nil {
-		return
-	}
+	// errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
+	// if errOnValiteToken != nil {
+	// 	return
+	// }
 	var req createUserRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
@@ -51,6 +51,48 @@ func (server *Server) createUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 	}
+	// Apache Kafka ---
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "kafka-hostname:29092"})
+	if err != nil {
+		panic(err)
+	}
+
+	defer p.Close()
+
+	// Delivery report handler for produced messages
+	go func() {
+		for e := range p.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
+				} else {
+					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
+				}
+			}
+		}
+	}()
+
+	// Produce messages to topic (asynchronously)
+	topic := "create-user"
+	messageText := &db.User{
+		ID:        user.ID,
+		Username:  user.Username,
+		Password:  user.Password,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+	}
+	messageTextJson, _ := json.Marshal(messageText)
+	p.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          []byte(string(messageTextJson)),
+	}, nil)
+
+	// Wait for message deliveries before shutting down
+	// Flush and close the producer and the events channel
+	for p.Flush(1000) > 0 {
+		fmt.Print("Still waiting to flush outstanding messages\n", p)
+	}
 
 	ctx.JSON(http.StatusOK, user)
 }
@@ -60,10 +102,10 @@ type getUserRequest struct {
 }
 
 func (server *Server) getUser(ctx *gin.Context) {
-	errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
-	if errOnValiteToken != nil {
-		return
-	}
+	// errOnValiteToken := util.GetTokenInHeaderAndVerify(ctx)
+	// if errOnValiteToken != nil {
+	// 	return
+	// }
 	var req getUserRequest
 	err := ctx.ShouldBindUri(&req)
 	if err != nil {
@@ -78,6 +120,48 @@ func (server *Server) getUser(ctx *gin.Context) {
 		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
+	}
+	// Apache Kafka ---
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "kafka-hostname:29092"})
+	if err != nil {
+		panic(err)
+	}
+
+	defer p.Close()
+
+	// Delivery report handler for produced messages
+	go func() {
+		for e := range p.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
+				} else {
+					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
+				}
+			}
+		}
+	}()
+
+	// Produce messages to topic (asynchronously)
+	topic := "get-user-username"
+	messageText := &db.User{
+		ID:        user.ID,
+		Username:  user.Username,
+		Password:  user.Password,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+	}
+	messageTextJson, _ := json.Marshal(messageText)
+	p.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          []byte(string(messageTextJson)),
+	}, nil)
+
+	// Wait for message deliveries before shutting down
+	// Flush and close the producer and the events channel
+	for p.Flush(1000) > 0 {
+		fmt.Print("Still waiting to flush outstanding messages\n", p)
 	}
 
 	ctx.JSON(http.StatusOK, user)
@@ -107,7 +191,7 @@ func (server *Server) getUserById(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
-	//
+	// Apache Kafka ---
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "kafka-hostname:29092"})
 	if err != nil {
 		panic(err)
